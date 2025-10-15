@@ -1,0 +1,374 @@
+Lab Exercises
+
+Towns Addresses
+
+SELECT
+    t.town_id,
+    t.name AS "town_name",
+    a.address_text
+FROM
+    addresses AS a
+JOIN
+    towns AS t
+USING
+    (town_id)
+WHERE
+    t.name IN ('San Francisco', 'Sofia', 'Carnation')
+ORDER BY
+    a.town_id, 
+    a.address_id
+;   
+
+Managers
+
+SELECT 
+    e.employee_id,
+    CONCAT (e.first_name, ' ', e.last_name) AS "full_name",
+    d.department_id,
+    d.name AS "department_name"
+FROM
+    employees AS e
+JOIN    
+    departments AS d
+ON
+    e.employee_id = d.manager_id
+ORDER BY
+    e.employee_id
+LIMIT 5
+;
+
+Employees Projects
+
+SELECT
+    e.employee_id, 
+    CONCAT (e.first_name, ' ', e.last_name) AS "full_name",
+    ep.project_id,
+    p.name AS "project_name"
+FROM
+    employees AS e
+JOIN
+    employees_projects AS ep
+USING
+    (employee_id)
+JOIN
+    projects AS p
+USING
+    (project_id)
+WHERE
+    ep.project_id = 1
+;
+
+Higher Salary
+
+SELECT
+    COUNT (*)
+FROM
+    employees
+WHERE
+    salary > (SELECT AVG(salary) FROM employees)
+
+
+Homework Exercises
+
+
+ First 10 Apartments Booked At
+
+SELECT
+    a.name,
+    a.country,
+    CAST(b.booked_at AS DATE)
+FROM
+    apartments AS a
+LEFT JOIN
+    bookings AS b
+USING
+    (booking_id)
+LIMIT 10
+;
+
+First 10 Customers with Bookings
+
+SELECT
+    b.booking_id,
+    CAST(b.starts_at AS DATE),
+    b.apartment_id,
+    CONCAT (c.first_name, ' ', c.last_name) AS "customer_name"
+FROM
+    bookings AS b
+RIGHT JOIN
+    customers AS c
+USING
+    (customer_id)
+ORDER BY
+    "customer_name"
+LIMIT 10
+;
+
+ Booking Information
+
+SELECT
+    b.booking_id,
+    a.name AS "apartment_owner",
+    a.apartment_id,
+    CONCAT (c.first_name, ' ', c.last_name) AS "customer_name"
+FROM
+    bookings AS b
+FULL JOIN
+    apartments AS a
+USING
+    (booking_id)
+FULL JOIN
+    customers AS c
+USING
+    (customer_id)
+ORDER BY
+    b.booking_id,
+    "apartment_owner",
+    "customer_name"
+;
+
+Unassigned Apartments
+
+SELECT
+    b.booking_id,
+    b.apartment_id,
+    c.companion_full_name
+FROM
+    bookings AS b
+JOIN
+    customers AS c
+USING
+    (customer_id)
+WHERE   
+    b.apartment_id IS NULL
+;   
+
+Bookings Made by Lead
+
+SELECT
+    b.apartment_id,
+    b.booked_for,
+    c.first_name,
+    c.country
+FROM
+    bookings AS b
+JOIN
+    customers AS c
+USING
+    (customer_id)
+WHERE
+    c.job_type IN ('Lead')
+;
+
+Total Sum of Nights
+
+SELECT
+    a.name,
+    SUM(b.booked_for)
+FROM
+    apartments AS a
+JOIN
+    bookings AS b
+USING
+    (apartment_id)
+GROUP BY
+    a.name
+ORDER BY
+    a.name
+;
+
+Popular Vacation Destination
+
+SELECT
+    a.country,
+    COUNT(b.booking_id) AS "booking_count"
+FROM
+    bookings AS b
+JOIN
+    apartments AS a
+USING
+    (apartment_id)
+WHERE
+    b.booked_at > '2021-05-18 07:52:09.904+03'
+    AND
+    b.booked_at < '2021-09-17 19:48:02.147+03'
+GROUP BY
+    a.country
+ORDER BY
+    "booking_count" DESC
+;
+
+Bulgaria's Peaks Higher than 2835 Meters
+
+SELECT
+    mc.country_code,
+    m.mountain_range,
+    p.peak_name,
+    p.elevation
+FROM
+    mountains AS m
+JOIN
+    peaks AS p
+ON
+    m.id = p.mountain_id
+JOIN
+    mountains_countries AS mc
+USING
+    (mountain_id)
+WHERE
+    p.elevation > 2835
+    AND
+    mc.country_code = 'BG'
+ORDER BY
+    p.elevation DESC
+;   
+
+Count Mountain Ranges
+
+SELECT
+    mc.country_code,
+    COUNT(m.mountain_range) AS "mountain_range_count"
+FROM
+    mountains_countries AS MC
+JOIN
+    mountains AS m
+ON
+    m.id = mc.mountain_id
+WHERE
+    mc.country_code IN ('US', 'RU', 'BG')
+GROUP BY
+    mc.country_code
+ORDER BY
+    "mountain_range_count" DESC
+;
+
+Rivers in Africa
+
+SELECT
+    c.country_name,
+    r.river_name
+FROM
+    countries AS c
+LEFT JOIN
+    countries_rivers AS cr
+USING
+    (country_code)
+LEFT JOIN
+    rivers AS r
+ON
+    cr.river_id = r.id
+WHERE
+    c.continent_code = 'AF'
+ORDER BY
+    c.country_name
+LIMIT 5
+;
+
+Minimum Average Area Across Continents
+
+SELECT
+    MIN("average_area") AS "min_average_area"
+FROM (
+    SELECT
+        AVG(area_in_sq_km) AS "average_area"
+    FROM
+        countries
+    GROUP BY
+        continent_code
+) AS "min_average_area"
+;
+
+Countries Without Any Mountains
+
+SELECT
+    COUNT(*) AS "countries_without_mountains"
+FROM
+    countries AS c
+LEFT JOIN
+    mountains_countries AS mc
+USING
+    (country_code)
+WHERE
+    mc.mountain_id IS NULL
+;
+
+Monasteries by Country
+
+UPDATE
+    countries
+SET
+    country_name = 'Burma'
+WHERE
+    country_name = 'Myanmar' 
+;
+
+INSERT INTO monasteries(monastery_name, country_code)
+VALUES
+    ('Hanga Abbey', (SELECT country_code FROM countries WHERE country_name = 'Tanzania')),
+    ('Myin-Tin-Daik', (SELECT country_code FROM countries WHERE country_name = 'Myanmar'))
+;
+
+SELECT
+    continent_name,
+    country_name,
+    COUNT(m.country_code) AS "monasteries_count"
+FROM 
+    continents AS c
+JOIN
+    countries AS countr
+USING
+    (continent_code)
+LEFT JOIN
+    monasteries AS m
+USING
+    (country_code)
+WHERE
+    NOT countr.three_rivers 
+GROUP BY
+    countr.country_name,
+    c.continent_name
+ORDER BY
+    "monasteries_count" DESC,
+    countr.country_name
+;   
+
+Monasteries by Continents and Countries
+
+UPDATE
+    countries
+SET
+    country_name = 'Burma'
+WHERE
+    country_name = 'Myanmar' 
+;
+
+INSERT INTO monasteries(monastery_name, country_code)
+VALUES
+    ('Hanga Abbey', (SELECT country_code FROM countries WHERE country_name = 'Tanzania')),
+    ('Myin-Tin-Daik', (SELECT country_code FROM countries WHERE country_name = 'Myanmar'))
+;
+
+SELECT
+    continent_name,
+    country_name,
+    COUNT(m.country_code) AS "monasteries_count"
+FROM 
+    continents AS c
+JOIN
+    countries AS countr
+USING
+    (continent_code)
+LEFT JOIN
+    monasteries AS m
+USING
+    (country_code)
+WHERE
+    NOT countr.three_rivers 
+GROUP BY
+    countr.country_name,
+    c.continent_name
+ORDER BY
+    "monasteries_count" DESC,
+    countr.country_name
+;   
+

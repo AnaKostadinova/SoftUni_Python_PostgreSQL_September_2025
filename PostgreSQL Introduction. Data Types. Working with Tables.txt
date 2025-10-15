@@ -1,0 +1,152 @@
+Lab Exercises
+Create Tables
+
+CREATE TABLE employees(
+id SERIAL PRIMARY KEY NOT NULL,
+first_name VARCHAR(30),
+last_name VARCHAR(50),
+hiring_date DATE DEFAULT '2023-01-01',
+salary NUMERIC(10,2),
+devices_number INT
+);
+
+CREATE TABLE departments(
+id SERIAL PRIMARY KEY NOT NULL,
+name VARCHAR(50),
+code CHARACTER(3),
+description TEXT
+);
+
+CREATE TABLE issues(
+id SERIAL PRIMARY KEY NOT NULL,
+description VARCHAR(150),
+date DATE,
+start TIMESTAMP
+);
+
+Alter Tables
+
+ALTER TABLE employees
+ADD COLUMN middle_name VARCHAR(50)
+;
+
+Add Constraints
+
+ALTER TABLE employees
+ALTER COLUMN salary SET NOT NULL,
+ALTER COLUMN salary SET DEFAULT 0,
+ALTER COLUMN hiring_date SET NOT NULL
+;
+
+Modify Columns
+
+ALTER TABLE employees
+ALTER COLUMN middle_name TYPE VARCHAR(100)
+;
+
+Homework Exercises
+
+Create a Table
+
+CREATE TABLE minions(
+id SERIAL PRIMARY KEY,
+name VARCHAR(30),
+age INT
+);
+
+Rename the Table
+
+ALTER TABLE minions
+RENAME TO minions_info;
+
+ Alter the Table
+
+ALTER TABLE minions_info
+ADD COLUMN code CHAR(4),
+ADD COLUMN task TEXT,
+ADD COLUMN salary DECIMAL(8,3)
+;
+
+Rename Column
+
+ALTER TABLE minions_info
+RENAME COLUMN salary TO banana
+;
+
+ Add New Columns
+
+ALTER TABLE minions_info
+ADD COLUMN email VARCHAR(20),
+ADD COLUMN equipped BOOLEAN NOT NULL
+;
+
+Create ENUM Type
+
+CREATE TYPE type_mood
+AS ENUM (
+'happy',
+'relaxed',
+'stressed',
+'sad'
+);
+
+ALTER TABLE minions_info
+ADD COLUMN mood type_mood
+;
+
+Set Default
+
+ALTER TABLE minions_info
+ALTER COLUMN age SET DEFAULT 0,
+ALTER COLUMN name SET DEFAULT '',
+ALTER COLUMN code SET DEFAULT ''
+;
+
+Add Constraints
+
+ALTER TABLE minions_info
+ADD CONSTRAINT unique_containt UNIQUE (
+id,
+email
+),
+ADD CONSTRAINT banana_check CHECK (banana > 0)
+;
+
+Change Column’s Data Type
+
+ALTER TABLE minions_info
+ALTER COLUMN task TYPE VARCHAR(150);
+
+Drop Constraint
+
+ALTER TABLE minions_info
+ALTER COLUMN equipped DROP NOT NULL;
+
+Remove Column
+
+ALTER TABLE minions_info
+DROP COLUMN age;
+
+Table Birthdays
+
+CREATE TABLE IF NOT EXISTS minions_birthdays (
+id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+name VARCHAR(50),
+date_of_birth DATE,
+age INT,
+present VARCHAR(100),
+party TIMESTAMPTZ
+);
+
+Insert Into
+
+INSERT INTO minions_info(name, code, task, banana, email, equipped, mood)
+VALUES
+('Mark', 'GKYA', 'Graphing Points', 3265.265, 'mark@minion.com', false, 'happy'),
+('Mel', 'HSK', 'Science Investigation', 54784.996, 'mel@minion.com', true, 'stressed'),
+('Bob', 'HF', 'Painting', 35.652, 'bob@minion.com', true, 'happy'),
+('Darwin', 'EHND', 'Create a Digital Greeting', 321.958, 'darwin@minion.com', false, 'relaxed'),
+('Kevin', 'KMHD', 'Construct with Virtual Blocks', 35214.789, 'kevin@minion.com', false, 'happy'),
+('Norbert', 'FEWB', 'Testing', 3265.500, 'norbert@minion.com', true, 'sad'),
+('Donny', 'L', 'Make a Map', 8.452, 'donny@minion.com', true, 'happy')
+;

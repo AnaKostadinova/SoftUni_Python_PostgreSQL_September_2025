@@ -1,0 +1,2296 @@
+PostgreSQL Exam Preparation I
+
+Database Design	Creators without Board Games
+    CREATE TABLE categories(
+        id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        name VARCHAR(50) NOT NULL
+    );
+    
+    CREATE TABLE addresses(
+        id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        street_name VARCHAR(100) NOT NULL,
+        street_number INT NOT NULL,
+        town VARCHAR(30) NOT NULL,
+        country VARCHAR(50) NOT NULL,
+        zip_code INT NOT NULL,
+        
+        CONSTRAINT ck_street_number_is_positive
+        CHECK (street_number > 0),
+        CONSTRAINT ck_zip_code_is_positive
+        CHECK (zip_code > 0)
+    );
+    
+CREATE TABLE publishers(
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name VARCHAR(30) NOT NULL,
+    address_id INT NOT NULL,
+    website VARCHAR(40),
+    phone VARCHAR(20),
+
+    FOREIGN KEY (address_id)
+    REFERENCES addresses(id)
+    ON UPDATE CASCADE
+    ON DELETE CASCADE
+);
+
+CREATE TABLE players_ranges(
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    min_players INT NOT NULL,
+    max_players INT NOT NULL,
+
+    CONSTRAINT ck_min_players_is_positive
+    CHECK (min_players > 0),
+    CONSTRAINT ck_max_players_is_positive
+    CHECK (max_players > 0)
+);
+
+CREATE TABLE creators(
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    first_name VARCHAR(30) NOT NULL,
+    last_name VARCHAR(30) NOT NULL,
+    email VARCHAR(30) NOT NULL
+);
+
+CREATE TABLE board_games(
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name VARCHAR(30) NOT NULL,
+    release_year INT NOT NULL,
+    rating NUMERIC(2) NOT NULL,
+    category_id INT NOT NULL,
+    publisher_id INT NOT NULL,
+    players_range_id INT NOT NULL,
+
+    CONSTRAINT ck_release_year_is_positive
+    CHECK (release_year > 0),
+
+    FOREIGN KEY (category_id)
+    REFERENCES categories(id)
+    ON UPDATE CASCADE
+    ON DELETE CASCADE,
+
+    FOREIGN KEY (publisher_id)
+    REFERENCES publishers(id)
+    ON UPDATE CASCADE
+    ON DELETE CASCADE,
+
+    FOREIGN KEY (players_range_id)
+    REFERENCES players_ranges(id)
+    ON UPDATE CASCADE
+    ON DELETE CASCADE
+);
+
+CREATE TABLE creators_board_games(
+    creator_id INT NOT NULL,
+    board_game_id INT NOT NULL,
+
+    FOREIGN KEY (creator_id)
+    REFERENCES creators(id)
+    ON UPDATE CASCADE
+    ON DELETE CASCADE,
+
+    FOREIGN KEY (board_game_id)
+    REFERENCES board_games(id)
+    ON UPDATE CASCADE
+    ON DELETE CASCADE
+);	SELECT
+    cr.id,
+    CONCAT(cr.first_name, ' ', cr.last_name) AS "creator_name",
+    cr.email
+FROM
+    creators AS cr
+LEFT JOIN
+    creators_board_games AS cbg
+ON
+    cr.id = cbg.creator_id
+WHERE
+    cbg.creator_id IS NULL
+ORDER BY
+    "creator_name"
+;
+Insert	First 5 Board Games
+INSERT INTO board_games(name, release_year, rating, category_id, publisher_id, players_range_id)
+VALUES
+    ('Deep Blue', 2019, 5.67, 1, 15, 7),
+    ('Paris', 2016, 9.78, 7, 1, 5),
+    ('Catan: Starfarers', 2021, 9.87, 7, 13, 6),
+    ('Bleeding Kansas', 2020, 3.25, 3, 7, 4),
+    ('One Small Step', 2019, 5.75, 5, 9, 2);
+    
+INSERT INTO publishers(name, address_id, website, phone)
+VALUES
+    ('Agman Games', 5, 'www.agmangames.com', '+16546135542'),
+    ('Amethyst Games',  7, 'www.amethystgames.com', '+15558889992'),
+    ('BattleBooks', 13, 'www.battlebooks.com', '+12345678907');	SELECT
+    bg.name,
+    bg.rating,
+    cat.name AS "category_name"
+FROM
+    board_games AS bg
+JOIN
+    players_ranges AS pr
+ON
+    pr.id = bg.players_range_id
+JOIN
+    categories AS cat
+ON
+    cat.id = bg.category_id
+WHERE
+    (bg.rating > 7 AND bg.name ILIKE '%a%')
+    OR
+    (bg.rating > 7.50 AND pr.min_players >= 2 AND pr.max_players <= 5)
+ORDER BY
+    bg.name,
+    bg.rating DESC
+LIMIT 5
+;
+Update	Creators with Emails
+UPDATE players_ranges 
+SET
+	max_players = max_players + 1
+WHERE
+	min_players = 2
+	AND
+	max_players = 2
+;
+
+UPDATE board_games
+SET
+	"name" = "name" || ' V2'
+WHERE
+	release_year >= 2020
+;	SELECT
+    CONCAT(cr.first_name, ' ', cr.last_name) AS "full_name",
+    cr.email,
+    MAX(bg.rating)
+FROM
+    creators AS cr
+JOIN
+    creators_board_games AS cbg
+ON
+    cbg.creator_id = cr.id
+JOIN
+    board_games AS bg
+ON
+    cbg.board_game_id = bg.id
+GROUP BY
+    "full_name",
+    cr.email
+HAVING
+    cr.email LIKE '%.com'
+ORDER BY
+    "full_name"
+;
+Delete	Creators by Rating
+DELETE FROM board_games
+WHERE   
+    publisher_id IN(
+        SELECT
+            id
+        FROM
+            publishers
+        WHERE
+            address_id IN(
+                SELECT
+                    id
+                FROM
+                    addresses
+                WHERE
+                    town LIKE 'L%'
+            )
+    );
+
+DELETE FROM publishers
+WHERE
+    address_id IN(
+        SELECT
+            id
+        FROM
+            addresses
+        WHERE
+            town LIKE 'L%'
+    );
+
+DELETE FROM
+    addresses
+WHERE
+    town LIKE 'L%';	SELECT
+    cr.last_name,
+    CEIL(AVG(bg.rating)) AS "average_rating",
+    p.name AS "publisher_name"
+FROM
+    creators AS cr
+JOIN
+    creators_board_games AS cbg
+ON
+    cbg.creator_id = cr.id
+JOIN
+    board_games AS bg
+ON
+    cbg.board_game_id = bg.id
+JOIN
+    publishers AS p
+ON
+    bg.publisher_id = p.id
+GROUP BY
+    cr.last_name,
+    p.name
+HAVING
+    p.name = 'Stonemaier Games'
+ORDER BY
+    "average_rating" DESC
+;
+Board Games by Release Year	 Creator of Board Games
+SELECT
+    name,
+    rating
+FROM
+    board_games
+ORDER BY
+    release_year ASC,
+    name DESC
+;	CREATE OR REPLACE FUNCTION fn_get_volunteers_count_from_department(searched_volunteers_department VARCHAR(30))
+RETURNS INT AS
+$$
+	DECLARE
+		volunteers_count INT;
+	BEGIN
+		volunteers_count := (
+			SELECT
+				COUNT(*)
+			FROM
+				volunteers AS v
+			JOIN
+				volunteers_departments AS vd
+			ON
+				vd.id = v.department_id
+			WHERE
+				vd.department_name = searched_volunteers_department);
+		RETURN volunteers_count;
+	END
+$$
+LANGUAGE plpgsql;
+Board Games by Category	Search for Board Games
+SELECT
+    bg.id,
+    bg.name,
+    bg.release_year,
+    cat.name
+FROM
+    board_games AS bg
+JOIN
+    categories AS cat
+ON
+    bg.category_id= cat.id
+WHERE
+    cat.name IN ('Strategy Games', 'Wargames')
+ORDER BY
+    bg.release_year DESC
+;	CREATE OR REPLACE PROCEDURE sp_animals_with_owners_or_not(
+IN animal_name VARCHAR(30),
+OUT owner_name VARCHAR(30)
+)
+AS
+$$
+	BEGIN
+		owner_name := (
+			SELECT
+				o.name -> OR COALESCE(o.name, 'For adoption ') + NO IF
+			FROM
+				animals AS a
+			JOIN
+				owners AS o
+			ON
+				a.owner_id = o.id
+			WHERE
+				a.name = animal_name
+			);
+		IF owner_name IS NULL THEN owner_name := 'For adoption';
+		END IF;
+	END
+$$
+LANGUAGE plpgsql;
+
+
+
+
+PostgreSQL Exam Preparation II
+
+Database Design	Drivers and Cars
+CREATE TABLE addresses(
+	id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+	name VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE categories(
+	id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+	name VARCHAR(10) NOT NULL
+);
+
+CREATE TABLE clients(
+	id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+	full_name VARCHAR(50) NOT NULL,
+	phone_number VARCHAR(20) NOT NULL
+);
+
+CREATE TABLE drivers(
+	id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+	first_name VARCHAR(30) NOT NULL,
+	last_name VARCHAR(30) NOT NULL,
+	age INT NOT NULL,
+	rating NUMERIC(2, 1) DEFAULT 5.5,
+
+	CONSTRAINT ck_age_is_positive
+	CHECK (age > 0)
+);
+
+CREATE TABLE cars(
+	id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+	make VARCHAR(20) NOT NULL,
+	model VARCHAR(20),
+	year INT NOT NULL DEFAULT 1,
+	mileage INT DEFAULT 1,
+	condition CHAR(1) NOT NULL,
+	category_id INT NOT NULL,
+
+	CONSTRAINT ck_year_positive_number
+	CHECK (year > 0),
+
+	CONSTRAINT ck_mileage_positive_number
+	CHECK (mileage > 0),
+
+	FOREIGN KEY (category_id)
+	REFERENCES categories(id)
+	ON UPDATE CASCADE
+	ON DELETE CASCADE
+);
+
+CREATE TABLE courses(
+	id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+	from_address_id INT NOT NULL,
+	start TIMESTAMP NOT NULL,
+	bill NUMERIC(10, 2) DEFAULT 10,
+	car_id INT NOT NULL,
+	client_id INT NOT NULL,
+
+	FOREIGN KEY (from_address_id)
+	REFERENCES addresses (id)
+	ON UPDATE CASCADE
+	ON DELETE CASCADE,
+
+	FOREIGN KEY (car_id)
+	REFERENCES cars (id)
+	ON UPDATE CASCADE
+	ON DELETE CASCADE,
+
+	FOREIGN KEY (client_id)
+	REFERENCES clients (id)
+	ON UPDATE CASCADE
+	ON DELETE CASCADE,
+
+	CONSTRAINT ck_bill_positive_number
+	CHECK (bill > 0)
+);
+
+CREATE TABLE cars_drivers(
+	car_id INT NOT NULL,
+	driver_id INT NOT NULL,
+
+	FOREIGN KEY (car_id)
+	REFERENCES cars (id)
+	ON UPDATE CASCADE
+	ON DELETE CASCADE,
+
+	FOREIGN KEY (driver_id)
+	REFERENCES drivers (id)
+	ON UPDATE CASCADE
+	ON DELETE CASCADE
+);	SELECT
+    d.first_name,
+    d.last_name,
+    c.make,
+    c.model,
+    c.mileage
+FROM
+    drivers AS d
+JOIN
+    cars_drivers AS cd
+ON
+    d.id = cd.driver_id
+JOIN
+    cars AS c
+ON
+    c.id = cd.car_id
+WHERE
+    mileage IS NOT NULL
+ORDER BY
+    c.mileage DESC,
+    d.first_name
+;
+Insert	Number of Courses for Each Car
+INSERT INTO clients(full_name, phone_number)
+SELECT
+	CONCAT(d.first_name, ' ', d.last_name),
+	CONCAT('(088) 9999', d.id * 2)
+FROM
+	drivers AS d
+WHERE
+	d.id BETWEEN 10 AND 20
+;	SELECT
+	ca.id AS "car_id",
+	ca.make,
+	ca.mileage,
+	COUNT(co.id) AS "count_of_courses",
+	ROUND(AVG(co.bill), 2) AS "average_bill"
+FROM
+	cars AS ca
+LEFT JOIN
+	courses AS co
+ON
+	co.car_id = ca.id
+GROUP BY
+	ca.id
+HAVING
+	COUNT(co.id) <> 2
+ORDER BY
+	"count_of_courses" DESC,
+	"car_id"
+;
+Update	Regular Clients
+UPDATE
+	cars
+SET
+	condition = 'C'
+WHERE
+	(mileage > 800000 OR mileage IS NULL)
+	AND
+	year <= 2010
+	AND
+	make <> 'Mercedes-Benz' 
+;	SELECT
+    cl.full_name,
+    COUNT(co.client_id) AS "count_of_cars",
+    SUM(co.bill) AS "total_sum"
+FROM
+    clients AS cl
+JOIN
+    courses AS co
+ON
+    cl.id = co.client_id
+GROUP BY
+    cl.full_name
+HAVING
+    cl.full_name LIKE '_a%'
+    AND
+    COUNT(co.client_id) > 1
+ORDER BY
+    cl.full_name
+;
+Delete	Full Information of Courses
+DELETE FROM clients
+WHERE
+	id NOT IN
+		(SELECT client_id FROM courses)
+	AND
+	LENGTH(full_name) > 3
+;	SELECT
+	ad.name,
+	CASE
+		WHEN EXTRACT(HOUR FROM co.start) BETWEEN 6 AND 20 THEN 'Day'  ->'Day' (between 6 and 20, inclusive) or 'Night'(between 21 and 5, inclusive)
+		ELSE 'Night'
+	END AS "day_time", 
+	co.bill,
+	cl.full_name,
+	ca.make,
+	ca.model,
+	cat.name AS "category_name"
+FROM
+	addresses AS ad
+JOIN
+	courses AS co
+ON
+	ad.id = co.from_address_id
+JOIN
+	clients AS cl
+ON
+	co.client_id = cl.id
+JOIN
+	cars AS ca
+ON
+	ca.id = co.car_id
+JOIN
+	categories AS cat
+ON
+	ca.category_id = cat.id
+ORDER BY
+	co.id
+;
+Cars	Find all Courses by Client’s Phone Number
+SELECT
+    make,
+    model,
+    condition
+FROM
+    cars
+ORDER BY
+    id
+;	CREATE OR REPLACE FUNCTION fn_courses_by_client(phone_num VARCHAR(20))
+RETURNS INT AS
+$$
+    DECLARE number_of_courses INT;
+    BEGIN
+        number_of_courses := (
+            SELECT
+                COUNT(co.client_id)
+            FROM
+                courses AS co
+            JOIN
+                clients AS cl
+            ON
+                co.client_id = cl.id
+            WHERE
+                cl.phone_number = phone_num
+        );
+        RETURN
+            number_of_courses;
+    END
+$$
+LANGUAGE plpgsql;
+	Full Info for Address
+	CREATE OR REPLACE PROCEDURE sp_courses_by_address(
+address_name VARCHAR(100)
+) 
+AS
+$$
+	BEGIN - > Before beginning the insertion process into the table, ensure that you TRUNCATE any existing results from the table at the start of the procedure.
+		TRUNCATE search_results;
+		INSERT INTO search_results(
+			address_name,
+			full_name,
+			level_of_bill,
+			make,
+			condition,
+			category_name
+		)
+		SELECT
+			ad.name AS "address_name",
+			cl.full_name,
+			CASE
+				WHEN co.bill BETWEEN 0 AND 20 THEN 'Low'
+				WHEN co.bill BETWEEN 21 AND 30 THEN 'Medium'
+				ELSE 'High'
+			END AS "level_of_bill",
+			ca.make,
+			ca.condition,
+			cat.name AS "category_name"
+		FROM
+			addresses AS ad
+		JOIN
+			courses AS co
+		ON
+			ad.id = co.from_address_id
+		JOIN
+			clients AS cl
+		ON
+			co.client_id = cl.id
+		JOIN
+			cars AS ca
+		ON
+			ca.id = co.car_id
+		JOIN
+			categories AS cat
+		ON
+			ca.category_id = cat.id
+		WHERE
+			ad.name = address_name
+		ORDER BY
+			ca.make,
+			cl.full_name;
+	END
+$$
+LANGUAGE plpgsql;
+
+
+
+
+PostgreSQL Exam Preparation III
+
+ Database Design	Creators without Board Games
+    CREATE TABLE categories(
+        id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        name VARCHAR(50) NOT NULL
+    );
+    
+    CREATE TABLE addresses(
+        id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        street_name VARCHAR(100) NOT NULL,
+        street_number INT NOT NULL,
+        town VARCHAR(30) NOT NULL,
+        country VARCHAR(50) NOT NULL,
+        zip_code INT NOT NULL,
+        
+        CONSTRAINT ck_street_number_is_positive
+        CHECK (street_number > 0),
+        CONSTRAINT ck_zip_code_is_positive
+        CHECK (zip_code > 0)
+    );
+    
+CREATE TABLE publishers(
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name VARCHAR(30) NOT NULL,
+    address_id INT NOT NULL,
+    website VARCHAR(40),
+    phone VARCHAR(20),
+
+    FOREIGN KEY (address_id)
+    REFERENCES addresses(id)
+    ON UPDATE CASCADE
+    ON DELETE CASCADE
+);
+
+CREATE TABLE players_ranges(
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    min_players INT NOT NULL,
+    max_players INT NOT NULL,
+
+    CONSTRAINT ck_min_players_is_positive
+    CHECK (min_players > 0),
+    CONSTRAINT ck_max_players_is_positive
+    CHECK (max_players > 0)
+);
+
+CREATE TABLE creators(
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    first_name VARCHAR(30) NOT NULL,
+    last_name VARCHAR(30) NOT NULL,
+    email VARCHAR(30) NOT NULL
+);
+
+CREATE TABLE board_games(
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name VARCHAR(30) NOT NULL,
+    release_year INT NOT NULL,
+    rating NUMERIC(2) NOT NULL,
+    category_id INT NOT NULL,
+    publisher_id INT NOT NULL,
+    players_range_id INT NOT NULL,
+
+    CONSTRAINT ck_release_year_is_positive
+    CHECK (release_year > 0),
+
+    FOREIGN KEY (category_id)
+    REFERENCES categories(id)
+    ON UPDATE CASCADE
+    ON DELETE CASCADE,
+
+    FOREIGN KEY (publisher_id)
+    REFERENCES publishers(id)
+    ON UPDATE CASCADE
+    ON DELETE CASCADE,
+
+    FOREIGN KEY (players_range_id)
+    REFERENCES players_ranges(id)
+    ON UPDATE CASCADE
+    ON DELETE CASCADE
+);
+
+CREATE TABLE creators_board_games(
+    creator_id INT NOT NULL,
+    board_game_id INT NOT NULL,
+
+    FOREIGN KEY (creator_id)
+    REFERENCES creators(id)
+    ON UPDATE CASCADE
+    ON DELETE CASCADE,
+
+    FOREIGN KEY (board_game_id)
+    REFERENCES board_games(id)
+    ON UPDATE CASCADE
+    ON DELETE CASCADE
+);	SELECT
+    cr.id,
+    CONCAT(cr.first_name, ' ', cr.last_name) AS "creator_name",
+    cr.email
+FROM
+    creators AS cr
+LEFT JOIN
+    creators_board_games AS cbg
+ON
+    cr.id = cbg.creator_id
+WHERE
+    cbg.creator_id IS NULL
+ORDER BY
+    "creator_name"
+;
+
+Insert	First 5 Board Games
+INSERT INTO board_games(name, release_year, rating, category_id, publisher_id, players_range_id)
+VALUES
+    ('Deep Blue', 2019, 5.67, 1, 15, 7),
+    ('Paris', 2016, 9.78, 7, 1, 5),
+    ('Catan: Starfarers', 2021, 9.87, 7, 13, 6),
+    ('Bleeding Kansas', 2020, 3.25, 3, 7, 4),
+    ('One Small Step', 2019, 5.75, 5, 9, 2);
+    
+INSERT INTO publishers(name, address_id, website, phone)
+VALUES
+    ('Agman Games', 5, 'www.agmangames.com', '+16546135542'),
+    ('Amethyst Games',  7, 'www.amethystgames.com', '+15558889992'),
+    ('BattleBooks', 13, 'www.battlebooks.com', '+12345678907');	Get the initial 5 board games with a "rating" higher than 7.00 that either contain the letter 'a' in the board game "name" OR have a "rating" greater than 7.50, and have a player count range between 2 and 5.
+SELECT
+	bg.name,
+	bg.rating,
+	cat.name AS "category_name"
+FROM
+	board_games AS bg
+JOIN
+	players_ranges AS pr
+ON
+	pr.id = bg.players_range_id
+JOIN
+	categories AS cat
+ON
+	cat.id = bg.category_id
+WHERE
+	(bg.rating > 7 AND bg.name ILIKE '%a%')
+	OR
+	(bg.rating > 7.50 AND pr.min_players >= 2 AND pr.max_players <= 5)
+ORDER BY
+	bg.name,
+	bg.rating DESC
+LIMIT 5
+;
+Update	Creators with Emails
+The next assignment is to update the "players_ranges" table by increasing the maximum player count by 1 for board games that have a player range of [2, 2]. Furthermore, you need to change the names of "board_games" that were published in 2020 or later by adding ' V2' to the end of their original names.
+
+UPDATE players_ranges 
+SET
+	max_players = max_players + 1
+WHERE
+	min_players = 2
+	AND
+	max_players = 2
+;
+
+UPDATE board_games
+SET
+	"name" = "name" || ' V2'    NOT WITH CONCAT
+WHERE
+	release_year >= 2020
+;	SELECT
+    CONCAT(cr.first_name, ' ', cr.last_name) AS "full_name",
+    cr.email,
+    MAX(bg.rating)
+FROM
+    creators AS cr
+JOIN
+    creators_board_games AS cbg
+ON
+    cbg.creator_id = cr.id
+JOIN
+    board_games AS bg
+ON
+    cbg.board_game_id = bg.id
+GROUP BY
+    "full_name",
+    cr.email
+HAVING
+    cr.email LIKE '%.com'
+ORDER BY
+    "full_name"
+;
+Delete	Creators by Rating
+ 
+In the "addresses" table, remove all countries that have a "town" starting with the letter 'L'. Take into consideration that there might be conflicts with foreign key constraints.
+-- Delete records from referencing tables first
+
+DELETE FROM board_games
+WHERE	
+	publisher_id IN(
+		SELECT
+			id
+		FROM
+			publishers
+		WHERE
+			address_id IN(
+				SELECT
+					id
+				FROM
+					addresses
+				WHERE
+					town LIKE 'L%'
+			)
+	);
+
+DELETE FROM publishers
+WHERE
+	address_id IN(
+		SELECT
+			id
+		FROM
+			addresses
+		WHERE
+			town LIKE 'L%'
+	);
+
+DELETE FROM
+	addresses
+WHERE
+	town LIKE 'L%';	SELECT
+    cr.last_name,
+    CEIL(AVG(bg.rating)) AS "average_rating",
+    p.name AS "publisher_name"
+FROM
+    creators AS cr
+JOIN
+    creators_board_games AS cbg
+ON
+    cbg.creator_id = cr.id
+JOIN
+    board_games AS bg
+ON
+    cbg.board_game_id = bg.id
+JOIN
+    publishers AS p
+ON
+    bg.publisher_id = p.id
+GROUP BY
+    cr.last_name,
+    p.name
+HAVING
+    p.name = 'Stonemaier Games'
+ORDER BY
+    "average_rating" DESC
+;
+Board Games by Release Year	Creator of Board Games
+SELECT
+    name,
+    rating
+FROM
+    board_games
+ORDER BY
+    release_year ASC,
+    name DESC
+;	CREATE OR REPLACE FUNCTION fn_creator_with_board_games(name VARCHAR(30))
+RETURNS INT AS
+$$
+    DECLARE total_board_games INT;
+    BEGIN
+        total_board_games := (
+            SELECT
+                COUNT(cbg.board_game_id)
+            FROM
+                creators AS cr
+            JOIN
+                creators_board_games AS cbg
+            ON
+                cr.id = cbg.creator_id
+            WHERE
+                cr.first_name = name
+        );
+        RETURN total_board_games;
+    END
+$$
+LANGUAGE plpgsql;
+Board Games by Category	Search for Board Games
+SELECT
+    bg.id,
+    bg.name,
+    bg.release_year,
+    cat.name
+FROM
+    board_games AS bg
+JOIN
+    categories AS cat
+ON
+    bg.category_id= cat.id
+WHERE
+    cat.name IN ('Strategy Games', 'Wargames')
+ORDER BY
+    bg.release_year DESC
+;	CREATE TABLE search_results (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50),
+    release_year INT,
+    rating FLOAT,
+    category_name VARCHAR(50),
+    publisher_name VARCHAR(50),
+    min_players VARCHAR(50),
+    max_players VARCHAR(50)
+);
+
+CREATE OR REPLACE PROCEDURE usp_search_by_category(
+category VARCHAR(50)
+)
+AS
+$$  
+    BEGIN
+        INSERT INTO search_results(
+            name,
+            release_year,
+            rating,
+            category_name,
+            publisher_name,
+            min_players,
+            max_players
+        )   
+        SELECT
+            bg.name,
+            bg.release_year,
+            bg.rating,
+            cat.name AS "category_name",
+            p.name AS "publisher_name",
+            CONCAT(pr.min_players, ' ', 'people') AS min_players,
+            CONCAT(pr.max_players, ' ', 'people') AS max_players
+        FROM
+            board_games AS bg
+        JOIN
+            categories AS cat
+        ON
+            bg.category_id = cat.id
+        JOIN
+            publishers AS p
+        ON
+            bg.publisher_id = p.id
+        JOIN
+            players_ranges AS pr
+        ON
+            bg.players_range_id = pr.id
+        WHERE
+            cat.name = category
+        ORDER BY
+            "publisher_name" ASC,
+            bg.release_year DESC;
+    END
+$$
+LANGUAGE plpgsql;
+
+
+
+
+
+PostgreSQL Regular Exam - 15 June 2024
+
+Database Design	Lucky Accounts
+CREATE TABLE accounts(
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    username VARCHAR(30) UNIQUE NOT NULL,
+    password VARCHAR(30) NOT NULL,
+    email VARCHAR(50) NOT NULL,
+    gender CHAR(1) NOT NULL,
+    age INT NOT NULL,
+    job_title VARCHAR(40) NOT NULL,
+    ip VARCHAR(30) NOT NULL,
+
+    CONSTRAINT ck_gender
+    CHECK (gender IN ('F', 'M'))
+);
+
+CREATE TABLE addresses(
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    street VARCHAR(30) NOT NULL,
+    town VARCHAR(30) NOT NULL,
+    country VARCHAR(30) NOT NULL,
+    account_id INT NOT NULL,
+    
+    FOREIGN KEY (account_id)
+    REFERENCES accounts(id)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE
+);
+
+CREATE TABLE photos(
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    description TEXT,
+    capture_date TIMESTAMP NOT NULL,
+    views INT DEFAULT 0 NOT NULL,
+
+    CONSTRAINT ck_views
+    CHECK (views >= 0)
+);
+
+CREATE TABLE comments(
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    content VARCHAR(255) NOT NULL,
+    published_on TIMESTAMP NOT NULL,
+    photo_id INT NOT NULL,
+    
+    FOREIGN KEY (photo_id)
+    REFERENCES photos(id)
+    ON DELETE CASCADE 
+    ON UPDATE CASCADE
+);
+
+CREATE TABLE accounts_photos(
+    account_id INT NOT NULL,
+    photo_id INT NOT NULL,
+    PRIMARY KEY (account_id, photo_id),
+    
+    FOREIGN KEY (account_id)
+    REFERENCES accounts(id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+
+    FOREIGN KEY (photo_id)
+    REFERENCES photos(id)
+    ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE TABLE likes(
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    photo_id INT NOT NULL,
+    account_id INT NOT NULL,
+    
+    FOREIGN KEY (photo_id)
+    REFERENCES photos(id)
+    ON DELETE CASCADE 
+    ON UPDATE CASCADE,
+
+    FOREIGN KEY (account_id)
+    REFERENCES accounts(id)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE
+);	SELECT
+    CONCAT(a.id, ' ', a.username) AS "id_username",
+    a.email
+FROM
+    accounts AS a
+JOIN
+    accounts_photos AS ap
+ON
+    a.id = ap.account_id
+JOIN
+    photos AS p
+ON
+    p.id = ap.photo_id
+WHERE
+    ap.account_id = ap.photo_id
+ORDER BY
+    ap.account_id ASC
+; Count Likes and Comments
+Insert	Count Likes and Comments
+You need to insert data records into the 'addresses' table, derived from the 'accounts' table. 
+For accounts identified as female gender, insert corresponding data into the 'addresses' table with the following values:
+•	street - set it to the username of the account.
+•	town - set it to the password of the account.
+•	country - set it to the ip of the account.
+•	account_id - set it to the age of the account.
+
+INSERT INTO addresses(street, town, country, account_id)
+SELECT
+	username,
+	password, 
+	ip,
+	age
+FROM
+	accounts
+WHERE
+	gender = 'F'
+;	SELECT
+	p.id AS "photo_id",
+	COUNT(DISTINCT l.id) AS likes_count,
+	COUNT(DISTINCT c.id) AS comments_count
+FROM
+	photos AS p
+LEFT JOIN
+	likes AS l
+ON
+	p.id = l.photo_id
+LEFT JOIN
+	comments AS c
+ON
+	c.photo_id = p.id
+GROUP BY
+	p.id
+ORDER BY
+	likes_count DESC,
+	comments_count DESC,
+	p.id ASC
+;
+Update	Photos Captured on the Tenth Day
+UPDATE addresses
+SET
+	country =
+	CASE
+		WHEN country LIKE 'B%' THEN 'Blocked'
+		WHEN country LIKE 'T%' THEN 'Test'
+		WHEN country LIKE 'P%' THEN 'In Progress'
+		ELSE country
+	END
+;	SELECT
+	CONCAT(LEFT(description, 10), '...') AS "summary",
+	TO_CHAR(capture_date, 'DD.MM HH24:MI') AS "date"
+FROM
+	photos
+WHERE
+	EXTRACT('DAY' FROM capture_date) = 10
+ORDER BY
+	capture_date DESC
+;
+Delete	Get Accounts Photos Count
+DELETE FROM addresses
+WHERE
+    id % 2 = 0
+    AND
+    street ILIKE '%r%'
+;	CREATE OR REPLACE FUNCTION udf_accounts_photos_count(account_username VARCHAR(30)) 
+RETURNS INT AS
+$$
+    DECLARE uploaded_photos INT;
+    BEGIN
+        uploaded_photos := (
+            SELECT
+                COUNT(ap.account_id)
+            FROM
+                accounts_photos AS ap
+            JOIN
+                accounts AS a
+            ON
+                a.id = ap.account_id
+            WHERE
+                a.username = account_username
+        );
+        RETURN uploaded_photos;
+    END
+$$
+LANGUAGE plpgsql;
+Accounts	Modify Accounts Job Title
+SELECT
+    username,
+    gender,
+    age
+FROM
+    accounts
+WHERE
+    age >= 18
+    AND
+    LENGTH(username) > 9
+ORDER BY
+    age DESC,
+    username ASC
+;	CREATE OR REPLACE PROCEDURE udp_modify_account(
+	address_street VARCHAR(30), 
+	address_town VARCHAR(30)
+)
+AS
+$$
+	BEGIN
+		UPDATE
+			accounts AS a
+		SET
+			job_title = CONCAT('(Remote) ', job_title)
+		FROM
+			addresses AS ad
+		WHERE
+			address_street = ad.street
+			AND
+			address_town = ad.town
+			AND
+			a.id = ad.account_id;
+	END
+$$
+LANGUAGE plpgsql;
+Top 3 Most Commented Photos	
+SELECT
+    p.id AS photo_id,
+    p.capture_date,
+    p.description,
+    COUNT(c.photo_id) AS comments_count
+FROM
+    photos AS p
+JOIN
+    comments as c
+ON
+    p.id = c.photo_id
+WHERE
+    p.description IS NOT NULL
+GROUP BY
+    p.id,
+    p.capture_date,
+    p.description
+ORDER BY
+    comments_count DESC,
+    photo_id ASC
+LIMIT 3
+;	
+
+
+
+
+PostgreSQL Retake Exam - 7 August 2024
+
+Database Design	Casting
+CREATE TABLE countries(
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name VARCHAR(40) UNIQUE NOT NULL,
+    continent VARCHAR(40) NOT NULL,
+    currency VARCHAR(5)
+);
+
+CREATE TABLE categories(
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name VARCHAR(50) UNIQUE NOT NULL
+);
+
+CREATE TABLE actors(
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    first_name VARCHAR(50) NOT NULL,
+    last_name VARCHAR(50) NOT NULL,
+    birthdate DATE NOT NULL,
+    height INT,
+    awards INT DEFAULT 0 NOT NULL,
+    country_id INT NOT NULL,
+
+    CONSTRAINT ck_awards
+    CHECK (awards >= 0),
+
+    FOREIGN KEY (country_id)
+    REFERENCES countries (id)
+    ON UPDATE CASCADE
+    ON DELETE CASCADE
+);
+
+CREATE TABLE productions_info(
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    rating DECIMAL(4,2) NOT NULL,
+    duration INT NOT NULL,
+    budget DECIMAL(10,2),
+    release_date DATE NOT NULL,
+    has_subtitles BOOLEAN DEFAULT FALSE NOT NULL,
+    synopsis TEXT,
+    
+    CONSTRAINT ck_duration
+    CHECK (duration > 0)
+);
+
+CREATE TABLE productions(
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    title VARCHAR(70) UNIQUE NOT NULL,
+    country_id INT NOT NULL,
+    production_info_id INT UNIQUE NOT NULL,
+    
+    FOREIGN KEY (country_id)
+    REFERENCES countries (id)
+    ON UPDATE CASCADE
+    ON DELETE CASCADE,
+
+    FOREIGN KEY (production_info_id)
+    REFERENCES productions_info (id)
+    ON UPDATE CASCADE
+    ON DELETE CASCADE
+);
+
+CREATE TABLE productions_actors(
+    production_id INT NOT NULL,
+    actor_id INT NOT NULL,
+    PRIMARY KEY (production_id, actor_id),
+
+    FOREIGN KEY (production_id)
+    REFERENCES productions (id)
+    ON UPDATE CASCADE
+    ON DELETE CASCADE,
+
+    FOREIGN KEY (actor_id)
+    REFERENCES actors (id)
+    ON UPDATE CASCADE
+    ON DELETE CASCADE
+);
+
+CREATE TABLE categories_productions(
+    category_id INT NOT NULL,
+    production_id INT NOT NULL,
+    PRIMARY KEY (category_id, production_id),
+
+    FOREIGN KEY (category_id)
+    REFERENCES categories (id)
+    ON UPDATE CASCADE
+    ON DELETE CASCADE,
+
+    FOREIGN KEY (production_id)
+    REFERENCES productions (id)
+    ON UPDATE CASCADE
+    ON DELETE CASCADE
+);	SELECT
+	CONCAT(first_name, ' ', last_name) AS full_name, 
+	CONCAT(LOWER(LEFT(first_name, 1)), LOWER(RIGHT(last_name, 2)), LENGTH(last_name), '@sm-cast.com') AS email,
+	awards 
+FROM
+	actors AS a
+WHERE
+	id NOT IN(
+		SELECT actor_id FROM productions_actors - > actors not participating in any productions
+	)
+ORDER BY
+	awards DESC,
+	id ASC
+;
+
+Insert	Nominees
+Insert data into the actors' table with the following values:
+•	first_name - set it to the first name of the actor but reversed.
+•	last_name - set it to the last name of the actor but reversed.
+•	birthdate - set it to the birthdate of the actor but 2 days earlier.
+•	height - set it to the height of the actor plus 10. Note that there should not be NULL height values for the new records. See the provided examples.
+•	awards - set them to the country_id.
+•	country_id - set it to the id of Armenia (Do not hard-code the id).
+
+INSERT INTO actors(first_name, last_name, birthdate, height, awards, country_id)
+SELECT
+	REVERSE(first_name),
+	REVERSE(last_name),
+	birthdate - INTERVAL '2 days',
+	COALESCE(height, 0) + 10,
+	country_id,
+	(SELECT id FROM countries WHERE name = 'Armenia')
+FROM
+	actors
+WHERE
+	id BETWEEN 10 AND 20
+;	SELECT
+	c.name AS country_name,
+	COUNT(p.id) AS productions_count,
+    COALESCE(AVG(pi.budget), 0) AS avg_budget - > Display zeros when there are no related data for average budgets.
+
+FROM
+	countries AS c
+JOIN
+	productions AS p
+ON
+	c.id = p.country_id
+JOIN
+	productions_info AS pi
+ON
+	pi.id = p.production_info_id
+GROUP BY
+	c.name
+HAVING
+	 COUNT(p.id) >= 1
+ORDER BY
+	 productions_count DESC,
+	 country_name ASC
+;
+
+Update	Classify by Rating
+Increase the production's duration for productions with no synopsis and the following ids
+
+UPDATE productions_info 
+SET
+	duration = duration + CASE
+		WHEN id < 15 THEN 15
+		WHEN id >= 20 THEN 20
+		ELSE 0
+	END
+WHERE
+	synopsis IS NULL
+;	SELECT
+    p.title,
+    CASE
+        WHEN pi.rating <= 3.50 THEN 'poor'
+        WHEN pi.rating BETWEEN  3.50 AND 8.00 THEN 'good'
+        ELSE 'excellent'
+    END AS rating,
+    CASE
+        WHEN pi.has_subtitles = 'true' THEN 'Bulgarian'
+        ELSE 'N/A'
+    END AS subtitles,
+    COUNT(pa.actor_id) AS actors_count
+FROM
+    productions AS p
+JOIN
+    productions_info AS pi
+ON
+    pi.id = p.production_info_id
+JOIN
+    productions_actors AS pa
+ON
+    pa.production_id = p.id
+GROUP BY
+    p.title,
+    pi.rating,
+    pi.has_subtitles
+ORDER BY
+    rating ASC,
+    actors_count DESC,
+    p.title ASC
+;
+Delete	Productions Count by Category
+DELETE FROM countries	
+WHERE id NOT IN (
+		SELECT country_id FROM actors
+		UNION
+		SELECT country_id FROM productions
+	);	CREATE OR REPLACE FUNCTION udf_category_productions_count(category_name VARCHAR(50)) 
+RETURNS VARCHAR AS
+$$
+	DECLARE productions_total_number VARCHAR;
+	BEGIN
+		productions_total_number := (
+			SELECT
+				COUNT(cp.category_id)
+			FROM
+				categories AS c
+			JOIN
+				categories_productions AS cp
+			ON
+				c.id = cp.category_id
+			WHERE
+				c.name = category_name
+		);
+		RETURN CONCAT('Found', ' ', productions_total_number, ' ', 'productions.');
+	END
+$$
+LANGUAGE plpgsql;
+Countries	Awarded Production
+SELECT
+    id,
+    name,
+    continent,
+    currency
+FROM
+    countries
+WHERE
+    continent = 'South America'
+    AND
+    (currency LIKE 'P%'
+    OR
+    currency LIKE 'U%')
+ORDER BY
+    currency DESC,
+    id ASC
+;	CREATE OR REPLACE PROCEDURE udp_awarded_production(
+	production_title VARCHAR(70)) 
+AS
+$$
+	BEGIN
+		UPDATE 
+			actors
+		SET
+			awards = awards + 1
+		WHERE
+			id IN (
+				SELECT
+					pa.actor_id
+				FROM
+					productions AS p
+				JOIN
+					productions_actors AS pa
+				ON
+					p.id = pa.production_id
+				WHERE
+					production_title = p.title
+				);
+	END
+$$
+LANGUAGE plpgsql;
+Productions by Release Year	
+Filter productions that have been released in 2023 and 2024 year
+
+SELECT
+	p.id, 
+	p.title,
+	pi.duration,
+	ROUND(pi.budget, 1) AS budget, 
+	TO_CHAR(pi.release_date, 'MM-YY') AS release_date
+FROM
+	productions AS p
+RIGHT JOIN
+	productions_info AS pi
+ON
+	p.production_info_id = pi.id
+WHERE
+	pi.release_date BETWEEN '2023-01-01' AND '2024-12-31'
+	AND
+	pi.budget > 1500000.00
+ORDER BY
+	budget ASC,
+	pi.duration DESC,
+	p.id ASC
+LIMIT 3
+;	
+
+
+
+
+
+PostgreSQL Exam - 14 October 2023
+
+ Database Design	Teams with Player Count and Fan Base
+CREATE TABLE towns(
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name VARCHAR(45) NOT NULL
+);
+
+CREATE TABLE stadiums(
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name VARCHAR(45) NOT NULL,
+    capacity INT NOT NULL CHECK (capacity > 0),
+    town_id INT NOT NULL, FOREIGN KEY (town_id) REFERENCES towns(id) ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+CREATE TABLE teams(
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name VARCHAR(45) NOT NULL,
+    established DATE NOT NULL,
+    fan_base INT DEFAULT 0 NOT NULL CHECK (fan_base >= 0),
+    stadium_id INT NOT NULL, FOREIGN KEY (stadium_id) REFERENCES stadiums(id) ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+CREATE TABLE coaches(
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    first_name VARCHAR(10) NOT NULL,
+    last_name VARCHAR(20) NOT NULL,
+    salary NUMERIC(10, 2) DEFAULT 0 NOT NULL CHECK (salary >= 0),
+    coach_level INT DEFAULT 0 NOT NULL CHECK (coach_level >= 0)
+);
+
+CREATE TABLE skills_data(
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    dribbling INT DEFAULT 0 CHECK (dribbling >= 0),
+    pace INT DEFAULT 0 CHECK (pace >= 0),   
+    passing INT DEFAULT 0 CHECK (passing >= 0), 
+    shooting INT DEFAULT 0 CHECK (shooting >= 0),       
+    speed INT DEFAULT 0 CHECK (speed >= 0), 
+    strength INT DEFAULT 0 CHECK (strength >= 0)
+);
+
+CREATE TABLE players(
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    first_name VARCHAR(10) NOT NULL,
+    last_name VARCHAR(20) NOT NULL,
+    age INT DEFAULT 0 NOT NULL CHECK (age >= 0),
+    position CHAR(1) NOT NULL,
+    salary NUMERIC(10, 2) DEFAULT 0 NOT NULL CHECK (salary >= 0),
+    hire_date TIMESTAMP,
+    skills_data_id INT NOT NULL, FOREIGN KEY (skills_data_id) REFERENCES skills_data(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    team_id INT, FOREIGN KEY (team_id) REFERENCES teams(id) ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+CREATE TABLE players_coaches(
+    player_id INT, FOREIGN KEY (player_id) REFERENCES players(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    coach_id INT, FOREIGN KEY (coach_id) REFERENCES coaches(id) ON UPDATE CASCADE ON DELETE CASCADE
+);	SELECT
+    t.id,
+    t.name AS team_name,
+    COUNT(p.team_id) AS player_count,
+    t.fan_base
+FROM
+    teams AS t
+JOIN
+    players AS p
+ON
+    t.id = p.team_id
+GROUP BY
+    t.id,
+    team_name,
+    t.fan_base
+HAVING
+    t.fan_base > 30000
+ORDER BY
+     player_count DESC,
+     t.fan_base DESC
+;
+Insert	Coaches, Players Skills and Teams Overview
+INSERT INTO coaches(first_name, last_name, salary, coach_level)
+SELECT
+    first_name,
+    last_name,
+    salary * 2,
+    LENGTH(first_name) AS coach_level
+FROM
+    players
+WHERE
+    hire_date < '2013-12-13 07:18:46'
+;	SELECT
+	CONCAT(c.first_name, ' ', c.last_name) AS coach_full_name,
+	CONCAT(p.first_name, ' ', p.last_name) AS player_full_name,
+	t.name AS team_name,
+	sd.passing,
+	sd.shooting,
+	sd.speed
+FROM
+	coaches AS c
+JOIN
+	players_coaches AS pc
+ON
+	c.id = pc.coach_id
+JOIN
+	players AS p
+ON
+	p.id = pc.player_id
+JOIN
+	skills_data AS sd
+ON
+	p.skills_data_id = sd.id
+JOIN
+	teams AS t
+ON
+	p.team_id = t.id
+GROUP BY
+	team_name,
+	sd.passing,
+	sd.shooting,
+	sd.speed,
+	coach_full_name,
+	player_full_name
+ORDER BY
+	coach_full_name ASC,
+	player_full_name DESC
+;
+
+Update	Stadium Teams Information
+UPDATE coaches
+SET
+	salary = salary * coach_level
+WHERE
+	id IN (
+		SELECT coach_id FROM players_coaches WHERE coach_id IS NOT NULL
+	)
+	AND
+	first_name LIKE 'C%'
+;	CREATE OR REPLACE FUNCTION fn_stadium_team_name(stadium_name VARCHAR(30))
+RETURNS TABLE (team_name VARCHAR(50))
+AS
+$$
+    BEGIN
+        RETURN QUERY
+            SELECT
+                t.name
+            FROM
+                teams AS t
+            JOIN
+                stadiums AS s
+            ON
+                s.id = t.stadium_id
+            WHERE
+                s.name = stadium_name
+            ORDER BY
+                t.name;
+    END
+$$
+LANGUAGE plpgsql;
+Delete	Player Team Finder
+To ensure the accurate update of our database, your assignment is to remove all instances of these promoted players from the "players" table. More specifically, eliminate players hired before '2013-12-13 07:18:46'. Additionally, delete all associated records for these players from the "players_coaches" table.
+
+DELETE FROM players_coaches
+WHERE
+	player_id IN (
+		SELECT 
+			id 
+		FROM players
+		WHERE
+			hire_date < '2013-12-13 07:18:46'
+	)
+;
+
+DELETE FROM players
+WHERE
+	hire_date < '2013-12-13 07:18:46'
+;	CREATE OR REPLACE PROCEDURE sp_players_team_name(
+    IN player_name VARCHAR(50),
+    OUT team_name VARCHAR(45) 
+)
+AS
+$$
+    BEGIN
+    team_name := (
+        SELECT
+            name
+        FROM
+            teams AS t
+        JOIN
+            players AS p
+        ON
+            t.id = p.team_id
+        WHERE
+            p.first_name || ' ' || p.last_name = player_name);
+        IF team_name IS NULL THEN team_name := 'The player currently has no team';
+        END IF;
+    END
+$$
+LANGUAGE plpgsql;
+Players	
+SELECT
+    CONCAT(first_name, ' ', last_name) AS full_name,
+    age,
+    hire_date
+FROM
+    players
+WHERE
+    first_name LIKE 'M%'
+ORDER BY
+    age DESC,
+    full_name ASC
+;	
+Offensive Players without Team	
+SELECT
+    p.id,
+    CONCAT(p.first_name, ' ', p.last_name) AS full_name,
+    p.age,
+    p.position,
+    p.salary,
+    sd.pace,
+    sd.shooting
+FROM
+    players AS p
+JOIN
+    skills_data AS sd
+ON
+    p.skills_data_id = sd.id
+WHERE
+    p.position = 'A'
+    AND
+    sd.pace + sd.shooting > 130
+    AND
+    p.team_id IS NULL
+;
+
+
+
+	
+
+PostgreSQL Retake Exam - 04 December 2023
+
+Database Design	Products
+CREATE TABLE countries(
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name VARCHAR(50) UNIQUE NOT NULL
+);
+
+CREATE TABLE customers(
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    first_name VARCHAR(25) NOT NULL,
+    last_name VARCHAR(50) NOT NULL,
+    gender CHAR(1) CHECK (gender IN ('M', 'F')),
+    age INT NOT NULL CHECK (age > 0),
+    phone_number char(10) NOT NULL,
+    country_id INT NOT NULL, FOREIGN KEY (country_id) REFERENCES countries (id) ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+CREATE TABLE products(
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name VARCHAR(25) NOT NULL,
+    description VARCHAR(250),
+    recipe TEXT,
+    price NUMERIC(10, 2) NOT NULL CHECK (price > 0)
+);
+
+CREATE TABLE feedbacks(
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    description VARCHAR(255),
+    rate NUMERIC(4, 2) CHECK (rate BETWEEN 0 AND 10),
+    product_id INT NOT NULL, FOREIGN KEY (product_id) REFERENCES products (id) ON UPDATE CASCADE ON DELETE CASCADE,
+    customer_id INT NOT NULL, FOREIGN KEY (customer_id) REFERENCES customers (id) ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+CREATE TABLE distributors(
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name VARCHAR(25) UNIQUE NOT NULL,
+    address VARCHAR(30) NOT NULL,
+    summary VARCHAR(200) NOT NULL,
+    country_id INT NOT NULL, FOREIGN KEY (country_id) REFERENCES countries (id) ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+CREATE TABLE ingredients(
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name VARCHAR(30) NOT NULL,
+    description VARCHAR(200),
+    country_id INT NOT NULL, FOREIGN KEY (country_id) REFERENCES countries (id) ON UPDATE CASCADE ON DELETE CASCADE,
+    distributor_id INT NOT NULL, FOREIGN KEY (distributor_id) REFERENCES distributors (id) ON UPDATE CASCADE ON DELETE CASCADE  
+);
+
+CREATE TABLE products_ingredients(
+    product_id INT, FOREIGN KEY (product_id) REFERENCES products (id) ON UPDATE CASCADE ON DELETE CASCADE,
+    ingredient_id INT, FOREIGN KEY (ingredient_id) REFERENCES ingredients (id) ON UPDATE CASCADE ON DELETE CASCADE
+);	SELECT
+    name,
+    recipe,
+    price
+FROM
+    products
+WHERE
+    price BETWEEN 10 and 20
+ORDER BY
+    price DESC
+;
+
+Insert	Negative Feedback
+the requests the creation of a new table named "gift_recipients" with the following columns:
+•	"id" - an automatically generated primary key;
+•	"name"- concatenation of customers’ "first_name" and "last_name";
+•	"country_id" - the country "id" of the individuals eligible to receive a gift;
+•	"gift_sent" - a Boolean flag with a default value of "False"
+As part of the data insertion process, you should update the "gift_sent" column to "True" for customers whose country "id" matches one of the following values: 7, 8, 14, 17, 26.
+
+CREATE TABLE gift_recipients(
+	id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+	name VARCHAR(50) NOT NULL,
+	country_id INT NOT NULL,
+	gift_sent BOOLEAN DEFAULT FALSE
+);
+
+INSERT INTO gift_recipients(name, country_id, gift_sent)
+SELECT
+	CONCAT(first_name, ' ', last_name) AS name,
+	country_id,
+	CASE
+		WHEN country_id IN (7, 8, 14, 17, 26) THEN TRUE
+		ELSE FALSE
+	END AS gift_sent
+FROM
+	customers
+;	SELECT
+    f.product_id,
+    f.rate,
+    f.description,
+    f.customer_id,
+    c.age,
+    c.gender
+FROM
+    customers AS c
+JOIN
+    feedbacks AS f
+ON
+    c.id = f.customer_id
+WHERE
+    f.rate < 5.0
+    AND
+    c.gender = 'F'
+    AND
+    c.age > 30
+ORDER BY
+    f.product_id DESC
+;
+
+
+Update	High Average Price and Multiple Feedbacks
+UPDATE 
+    products AS p
+SET
+    price = price * 1.10
+FROM
+    feedbacks AS f
+WHERE
+    f.rate > 8
+;	SELECT
+    p.name AS product_name,
+    ROUND(AVG(p.price), 2) AS average_price,
+    COUNT(f.id) AS total_feedbacks
+FROM
+    products AS p
+JOIN
+    feedbacks AS f
+ON
+    f.product_id = p.id
+GROUP BY
+    product_name,
+    p.price
+HAVING
+    p.price > 15
+    AND
+    COUNT(f.id) > 1
+ORDER BY
+    total_feedbacks ASC,
+    average_price DESC
+;
+Delete	Specific Ingredients
+DELETE FROM	
+	distributors
+WHERE
+	name LIKE 'L%'
+;
+
+DELETE FROM
+	ingredients
+WHERE
+	distributor_id IN(
+		SELECT
+			id
+		FROM
+			distributors
+		WHERE
+			name LIKE 'L%'
+	)
+;
+
+DELETE FROM
+	products_ingredients
+WHERE
+	ingredient_id IN(
+		SELECT
+			id
+		FROM
+			distributors
+		WHERE
+			name LIKE 'L%'
+	)
+;	SELECT
+    i.name AS ingredient_name,
+    p.name AS product_name,
+    d.name AS distributor_name
+FROM
+    distributors AS d
+JOIN
+    ingredients AS i
+ON
+    d.id = i.distributor_id
+JOIN
+    products_ingredients AS pi
+ON
+    i.id = pi.ingredient_id
+JOIN
+    products AS p
+ON
+    p.id = pi.product_id
+WHERE
+    i.name ILIKE '%mustard%'
+    AND
+    d.country_id = 16
+ORDER BY
+    p.name ASC
+;
+Middle Range Distributors	Customer’s Country
+SELECT
+    d.name AS distributor_name,
+    i.name AS ingredient_name,
+    p.name AS product_name,
+    AVG(f.rate) AS average_rate
+FROM
+    distributors AS d
+JOIN
+    ingredients AS i
+ON
+    d.id = i.distributor_id
+JOIN
+    products_ingredients AS pi
+ON
+    i.id = pi.ingredient_id
+JOIN
+    products AS p
+ON
+    p.id = pi.product_id
+JOIN
+    feedbacks AS f
+ON
+    p.id = f.product_id
+GROUP BY
+    distributor_name,
+    ingredient_name,
+    product_name
+HAVING
+    AVG(f.rate) BETWEEN 5 and 8
+ORDER BY
+    d.name,
+    i.name,
+    p.name
+;	CREATE OR REPLACE PROCEDURE sp_customer_country_name(
+IN customer_full_name VARCHAR(50),
+OUT country_name VARCHAR(50)) 
+AS
+$$
+    BEGIN
+        country_name := (
+            SELECT
+                c.name
+            FROM
+                countries AS c
+            JOIN
+                customers AS cust
+            ON
+                cust.country_id = c.id
+            WHERE
+                customer_full_name = CONCAT(cust.first_name, ' ', cust.last_name)
+        );
+    END
+$$
+LANGUAGE plpgsql;
+
+Customer Feedback	
+CREATE OR REPLACE FUNCTION fn_feedbacks_for_product(product_name VARCHAR(25)) 
+RETURNS TABLE(
+    customer_id INT,
+    customer_name VARCHAR(75),
+    feedback_description VARCHAR(255),
+    feedback_rate NUMERIC(4, 2)
+) 
+AS
+$$
+    BEGIN
+        RETURN QUERY (
+            SELECT
+                c.id AS customer_id,
+                c.first_name AS customer_name,
+                f.description AS feedback_description,
+                f.rate AS feedback_rate
+            FROM
+                customers AS c
+            JOIN
+                feedbacks AS f
+            ON
+                c.id = f.customer_id
+            JOIN
+                products AS p
+            ON
+                p.id = f.product_id
+            WHERE
+                p.name = product_name
+            ORDER BY
+                c.id ASC
+        );
+    END
+$$
+LANGUAGE plpgsql;
+
+
+
+	
+
+PostgreSQL Regular Exam - 11 October 2025
+
+Database Design	Items On Sale
+CREATE TABLE brands(
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name VARCHAR(50) UNIQUE NOT NULL
+);
+
+CREATE TABLE classifications(
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name VARCHAR(30) UNIQUE NOT NULL
+);
+
+CREATE TABLE customers(
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    first_name VARCHAR(30) NOT NULL,
+    last_name VARCHAR(30) NOT NULL,
+    address VARCHAR(150) NOT NULL,
+    phone VARCHAR(30) UNIQUE NOT NULL,
+    loyalty_card BOOLEAN DEFAULT FALSE NOT NULL
+);
+
+CREATE TABLE items(
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name VARCHAR(50) NOT NULL,
+    quantity INT NOT NULL CHECK (quantity >= 0),
+    price DECIMAL(12, 2) NOT NULL CHECK (price > 0.00),
+    description text,
+    brand_id INT NOT NULL, FOREIGN KEY (brand_id) REFERENCES brands(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    classification_id INT NOT NULL, FOREIGN KEY (classification_id) REFERENCES classifications(id) ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+CREATE TABLE orders(
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+    customer_id INT NOT NULL, FOREIGN KEY (customer_id) REFERENCES customers(id) ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+CREATE TABLE reviews(
+    customer_id INT NOT NULL, FOREIGN KEY (customer_id) REFERENCES customers(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    item_id INT NOT NULL, FOREIGN KEY (item_id) REFERENCES items(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    PRIMARY KEY (customer_id, item_id),
+    created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+    rating DECIMAL(3, 1) DEFAULT 0.0 NOT NULL CHECK (rating <= 10.0)
+);
+
+CREATE TABLE orders_items(
+    order_id INT NOT NULL, FOREIGN KEY (order_id) REFERENCES orders(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    item_id INT NOT NULL, FOREIGN KEY (item_id) REFERENCES items(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    PRIMARY KEY (order_id, item_id),
+    quantity INT NOT NULL CHECK (quantity >= 0)
+);	SELECT
+    i.name, 
+    CONCAT(UPPER(b.name), '/', LOWER(c.name)) AS promotion, 
+    CONCAT('On sale: ', i.description) AS description,
+    i.quantity 
+FROM
+    items AS i
+LEFT JOIN
+    orders_items AS oi
+ON  
+    i.id = oi.item_id
+JOIN
+    brands AS b
+ON
+    i.brand_id = b.id
+JOIN
+    classifications AS c
+ON
+    i.classification_id = c.id
+WHERE
+    oi.item_id IS NULL
+ORDER BY
+    i.quantity DESC,
+    i.name ASC
+;
+
+Insert	Customers without Reviews
+INSERT INTO items(name, quantity, price, description, brand_id, classification_id)
+SELECT
+    'Item' || r.created_at AS name,
+    r.customer_id AS quantity,
+    r.rating * 5 AS price,
+    NULL AS description,
+    r.item_id AS brand_id,
+    (
+        SELECT
+            MIN(item_id)
+        FROM reviews
+    ) AS classification_id
+FROM
+    reviews AS r
+ORDER BY
+    r.item_id ASC
+LIMIT 10
+;	SELECT
+    c.id AS customer_id,
+    CONCAT(c.first_name, ' ', c.last_name) AS full_name,
+    COUNT(o.customer_id) AS total_orders,
+    CASE
+        WHEN c.loyalty_card = TRUE THEN 'Loyal Customer'
+        ELSE 'Regular Customer'
+    END AS loyalty_status
+FROM
+    customers AS c
+JOIN
+    orders AS o
+ON
+    c.id = o.customer_id
+WHERE
+    c.id NOT IN(
+        SELECT
+            customer_id
+        FROM
+            reviews
+    )
+GROUP BY
+    c.id
+HAVING
+    COUNT(o.customer_id) >= 1
+ORDER BY
+    total_orders DESC,
+    customer_id ASC
+;
+Update	Top-rated Items
+UPDATE
+    reviews
+SET 
+    rating =
+    CASE
+        WHEN item_id = customer_id THEN 10.0
+        WHEN customer_id > item_id THEN 5.5
+        ELSE rating
+    END
+;	SELECT
+    i.name AS item_name,
+    ROUND(AVG(r.rating), 2) AS average_rating,
+    COUNT(r.item_id) AS total_reviews,
+    b.name AS brand_name,
+    c.name AS classification_name
+FROM
+    items AS i
+JOIN
+    reviews AS r
+ON
+    i.id = r.item_id
+JOIN
+    brands AS b
+ON
+    i.brand_id = b.id
+JOIN
+    classifications AS c
+ON
+    i.classification_id = c.id
+GROUP BY
+    item_name,
+    brand_name,
+    classification_name
+HAVING 
+    COUNT(r.item_id) >= 3
+ORDER BY
+    average_rating DESC,
+    item_name ASC
+LIMIT 3
+;
+Delete	Items by Classification
+DELETE FROM customers
+WHERE
+    id NOT IN(
+        SELECT
+            customer_id
+        FROM
+            orders      
+    )
+;	CREATE OR REPLACE FUNCTION udf_classification_items_count(classification_name VARCHAR(30))
+RETURNS VARCHAR AS
+$$
+    DECLARE 
+        items_total_number INT;
+        result VARCHAR(50);
+    BEGIN
+        SELECT
+            COUNT(i.id) INTO items_total_number
+        FROM
+            items AS i
+        JOIN
+            classifications AS c
+        ON
+            i.classification_id = c.id
+        WHERE
+            c.name = classification_name;
+        IF items_total_number > 0 THEN result := 'Found ' || items_total_number || ' items.';
+        ELSE result := 'No items found.'; 
+        END IF;
+        RETURN result;
+    END
+$$
+LANGUAGE plpgsql;
+Customers	Update Loyalty Status
+SELECT
+    id,
+    last_name,
+    loyalty_card
+FROM
+    customers 
+WHERE 
+    last_name ILIKE '%m%'
+    AND
+    loyalty_card = TRUE
+ORDER BY
+    last_name DESC,
+    id ASC
+;	CREATE OR REPLACE PROCEDURE udp_update_loyalty_status(min_orders INT) 
+AS
+$$
+    BEGIN
+        UPDATE customers AS c
+        SET
+            loyalty_card = TRUE
+        WHERE
+            c.id IN(
+                SELECT
+                    o.customer_id
+                FROM 
+                    orders AS o
+                GROUP BY 
+                    o.customer_id
+                HAVING 
+                    COUNT(o.id) >= min_orders
+            );
+    END
+$$
+LANGUAGE plpgsql;
+Orders By Date	
+SELECT
+    id, 
+    TO_CHAR(created_at, 'DD-MM-YYYY') AS created_at,
+    customer_id
+FROM
+    orders
+WHERE
+    created_at > '01-01-2025'
+    AND
+    customer_id BETWEEN 15 AND 30
+ORDER BY
+    created_at ASC,
+    customer_id DESC,
+    id ASC
+LIMIT 5
+;	
+
+

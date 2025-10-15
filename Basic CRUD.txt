@@ -1,0 +1,325 @@
+Lab Exercises
+
+Select Employee Information
+
+SELECT
+    id,
+    concat(first_name, ' ', last_name) AS "Full Name",
+    job_title AS "Job Title"
+FROM employees;
+
+Select Employees by Filtering
+
+SELECT
+    id,
+    concat(first_name, ' ', last_name) AS "full_name",
+    job_title,
+    salary
+FROM employees
+WHERE salary > 1000.00
+ORDER by id
+
+Select Employees by Multiple Filters
+
+SELECT
+    id,
+    first_name,
+    last_name,
+    job_title,
+    department_id,
+    salary
+FROM employees
+WHERE department_id = 4 AND salary >= 1000
+ORDER by id;
+
+ Insert Data into Employees Table
+
+INSERT INTO employees (first_name, last_name, job_title, department_id, salary)
+VALUES
+    ('Samantha', 'Young', 'Housekeeping', 4, 900),
+    ('Roger', 'Palmer', 'Waiter', 3, 928.33)
+;
+
+SELECT * FROM employees;
+
+ Update Salary and Select
+
+UPDATE employees
+SET salary = salary + 100
+WHERE job_title = 'Manager'
+;
+
+SELECT
+    id,
+    first_name,
+    last_name,
+    job_title,
+    department_id,
+    salary
+FROM employees
+WHERE job_title = 'Manager'
+;
+
+ Top Paid Employee View
+
+CREATE VIEW top_paid_employee AS
+    SELECT * FROM employees
+ORDER BY salary DESC LIMIT 1
+;
+
+SELECT * FROM top_paid_employee;
+
+
+Homework Exercises
+
+Concatenate
+
+SELECT
+	CONCAT(name, ' ', state) AS "cities_information",
+	area AS "area_km2"
+FROM cities
+;
+
+Remove Duplicate Rows
+
+SELECT DISTINCT ON (name) 
+	name, 
+	area AS "area_km2"
+FROM
+	cities
+ORDER BY 
+	name DESC
+;
+
+Limit Records
+
+SELECT
+	id,
+	CONCAT(first_name, ' ', last_name) AS "full_name",
+	job_title
+FROM
+	employees
+ORDER BY
+	first_name
+LIMIT 50
+;
+
+Skip Rows
+
+SELECT
+	id AS "id",
+	CONCAT_WS(' ', first_name, middle_name, last_name) AS "full_name",
+	hire_date
+FROM
+	employees
+ORDER BY
+	hire_date
+OFFSET 9
+;
+
+Find the Addresses
+
+SELECT
+	id,
+	CONCAT(number, ' ', street) AS "address",
+	city_id
+FROM
+	addresses
+WHERE
+	id >= 20
+;
+
+Positive Even Number
+
+SELECT
+	CONCAT(number, ' ', street) AS "address",
+	city_id
+FROM
+	addresses
+WHERE
+	city_id > 0
+		AND
+	city_id % 2 = 0
+ORDER BY
+	city_id
+;
+
+Projects within a Date Range
+
+SELECT
+	name,
+	start_date,
+	end_date
+FROM
+	projects
+WHERE
+	start_date >= '2016-06-01 07:00:00'
+		AND
+	end_date < '2023-06-04 00:00:00'
+ORDER BY
+	start_date
+;
+
+Multiple Conditions
+
+SELECT
+	number,
+	street
+FROM
+	addresses
+WHERE
+	id BETWEEN 50 AND 100
+		OR
+	number < 1000
+;
+
+ Set of Values
+
+SELECT
+	employee_id,
+	project_id
+FROM
+	employees_projects
+WHERE
+	employee_id IN (200, 250)
+		AND
+	project_id NOT IN (50, 100)
+;
+
+Compare Character Values
+
+SELECT
+	name,
+	start_date
+FROM
+	projects
+WHERE
+	name IN ('Mountain', 'Road', 'Touring')
+LIMIT 20
+;
+
+Salary
+
+SELECT
+	CONCAT(first_name, ' ', last_name) AS "full_name",
+	job_title,
+	salary
+FROM
+	employees
+WHERE
+	salary IN (12500, 14000, 23600, 25000)
+ORDER BY
+	salary DESC
+;
+
+ Missing Value
+
+SELECT
+	id,
+	first_name,
+	last_name
+FROM
+	employees
+WHERE
+	middle_name IS NULL
+LIMIT 3
+;
+
+INSERT Departments
+
+INSERT INTO
+	departments(department,manager_id)
+VALUES
+	('Finance', 3),
+	('Information Services', 42),
+	('Document Control', 90),
+	('Quality Assurance', 274),
+	('Facilities and Maintenance', 218),
+	('Shipping and Receiving', 85),
+	('Executive', 109)
+;
+
+New Table
+
+CREATE TABLE company_chart
+AS SELECT
+	concat(first_name, ' ', last_name) AS "full_name",
+	job_title,
+	department_id,
+	manager_id
+FROM
+	employees
+;
+
+Update the Project End Date
+
+UPDATE
+	projects
+SET
+	end_date = start_date + INTERVAL '5 months'
+WHERE
+	end_date IS NULL
+;
+
+Award Employees with Experience
+
+UPDATE
+	employees
+SET 
+	salary = salary + 1500,
+	job_title = CONCAT ('Senior', ' ', job_title)
+WHERE
+	hire_date BETWEEN '1998-01-01' AND '2000-01-05'
+;
+
+ Delete Addresses
+
+DELETE FROM
+	addresses 
+WHERE
+	city_id IN (5, 17, 20, 30)
+;
+
+Create a View
+
+CREATE VIEW view_company_chart AS
+SELECT
+	full_name,
+	job_title
+FROM
+	company_chart
+WHERE
+	manager_id = 184
+;
+
+
+
+CREATE VIEW view_addresses AS
+SELECT
+	CONCAT(employees.first_name, ' ', employees.last_name) AS "full_name",
+	employees.department_id,
+	CONCAT(addresses.number, ' ', addresses.street) AS "address"
+FROM
+	employees,
+	addresses
+WHERE
+	employees.address_id = addresses.id
+ORDER BY
+	address
+;
+
+Create a View with Multiple Tables
+
+CREATE VIEW view_addresses AS
+SELECT
+	CONCAT(employees.first_name, ' ', employees.last_name) AS "full_name",
+	employees.department_id,
+	CONCAT(addresses.number, ' ', addresses.street) AS "address"
+FROM
+	employees,
+	addresses
+WHERE
+	employees.address_id = addresses.id
+ORDER BY
+	address
+;
